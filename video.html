@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube リンク埋め込み</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .video-container {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #000;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>おすすめの動画</h1>
+
+    <div id="player" class="video-container"></div>
+
+    <script>
+        // 埋め込みたい動画のID
+        const videoId = 'HwAPLk_sQ3w';
+        
+        // iframeを作成してコンテナに追加する関数
+        function embedYouTube() {
+            const container = document.getElementById('player');
+            const iframe = document.createElement('iframe');
+
+            // 属性の設定
+            iframe.width = "560";
+            iframe.height = "315";
+            iframe.src = `https://www.youtube.com/embed/${videoId}`;
+            iframe.title = "YouTube video player";
+            iframe.frameBorder = "0";
+            iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+            iframe.allowFullscreen = true;
+
+            // HTMLに追加
+            container.appendChild(iframe);
+        }
+
+        // ページ読み込み時に実行
+        window.onload = embedYouTube;
+    </script>
+
+</body>
+</html>
