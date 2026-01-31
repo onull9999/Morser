@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MorseEcho - モールス信号コンバーター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- Data Tables (from morseConverter.ts) ---
+        const wabunMorseMap = {
+            'ア': '--.--', 'イ': '.-', 'ウ': '..-', 'エ': '-.---', 'オ': '.-...',
+            'カ': '.-..', 'キ': '-.-..', 'ク': '...-', 'ケ': '-.--', 'コ': '----',
+            'サ': '-.-.-', 'シ': '--.-.', 'ス': '---.-', 'セ': '.---.', 'ソ': '---.',
+            'タ': '.-', 'チ': '..-.', 'ツ': '.--..', 'テ': '.-.--', 'ト': '..-..',
+            'ナ': '.-.', 'ニ': '-.-.', 'ヌ': '..--', 'ネ': '--.-', 'ノ': '..--',
+            'ハ': '-...', 'ヒ': '--..-', 'フ': '--..', 'ヘ': '.', 'ホ': '-..',
+            'マ': '-..-', 'ミ': '..-.-', 'ム': '-', 'メ': '-...-', 'モ': '-..-.',
+            'ヤ': '.--', 'ユ': '-.--', 'ヨ': '--',
+            'ラ': '...', 'リ': '--.', 'ル': '-.--.', 'レ': '---', 'ロ': '.-.',
+            'ワ': '.--', 'ヰ': '.-..-', 'ヱ': '.--..', 'ヲ': '.---',
+            'ン': '.-.-', '゛': '..', '゜': '..--.', 'ー': '.--.-',
+            '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+            '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+            '.': '.-.-.-', ',': '--..--', '?': '..--..', '!': '-.-.--', ':': '---...',
+            ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-',
+            '"': '.-..-.', '@': '.--.-.', '(': '-.--.', ')': '-.--.-'
+        };
+
+        const romajiMap = {
+            'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o', 'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
+            'が': 'ga', 'ぎ': 'gi', 'ぐ': 'gu', 'げ': 'ge', 'ご': 'go', 'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
+            'ざ': 'za', 'じ': 'ji', 'ず': 'zu', 'ぜ': 'ze', 'ぞ': 'zo', 'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
+            'だ': 'da', 'ぢ': 'di', 'づ': 'du', 'で': 'de', 'ど': 'do', 'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
+            'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho', 'ば': 'ba', 'び': 'bi', 'ぶ': 'bu', 'べ': 'be', 'ぼ': 'bo',
+            'ぱ': 'pa', 'ぴ': 'pi', 'ぷ': 'pu', 'ぺ': 'pe', 'ぽ': 'po', 'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
+            'や': 'ya', 'ゆ': 'yu', 'よ': 'yo', 'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro', 'わ': 'wa', 'ん': 'n',
+            'ア': 'a', 'イ': 'i', 'ウ': 'u', 'エ': 'e', 'オ': 'o', 'ー': '-'
+        };
+
+        const internationalMorseMap = {
+            'a': '.-', 'b': '-...', 'c': '-.-.', 'd': '-..', 'e': '.', 'f': '..-.', 'g': '--.', 'h': '....',
+            'i': '..', 'j': '.---', 'k': '-.-', 'l': '.-..', 'm': '--', 'n': '-.', 'o': '---', 'p': '.--.',
+            'q': '--.-', 'r': '.-.', 's': '...', 't': '-', 'u': '..-', 'v': '...-', 'w': '.--', 'x': '-..-',
+            'y': '-.--', 'z': '--..', '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+            '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.', ' ': '/'
+        };
+
+        // --- Logic (from morseConverter.ts) ---
+        function textToMorse(text) {
+            if (!text.trim()) return { morse: '', original: '', method: 'mixed' };
+            const isJapanese = /[\u3040-\u309f\u30a0-\u30ff]/.test(text);
+            const hasEnglish = /[a-zA-Z0-9]/.test(text);
+
+            if (isJapanese && !hasEnglish) {
+                if (/[ァ-ヶ]/.test(text)) {
+                    let res = "";
+                    text.toUpperCase().split('').forEach(c => {
+                        if(c === ' ') res += '/ ';
+                        else if(wabunMorseMap[c]) res += wabunMorseMap[c] + ' ';
+                    });
+                    return { morse: res.trim(), original: text, method: 'wabun' };
+                } else {
+                    let romaji = "";
+                    text.split('').forEach(c => romaji += (romajiMap[c] || c));
+                    let morse = "";
+                    romaji.toLowerCase().split('').forEach(c => {
+                        if(internationalMorseMap[c]) morse += internationalMorseMap[c] + ' ';
+                    });
+                    return { morse: morse.trim(), original: romaji, method: 'romaji' };
+                }
+            } else {
+                let res = "", orig = "";
+                text.split('').forEach(c => {
+                    const up = c.toUpperCase();
+                    const lo = c.toLowerCase();
+                    if (wabunMorseMap[up] && /[\u30a0-\u30ff]/.test(c)) {
+                        res += wabunMorseMap[up] + ' '; orig += c;
+                    } else if (internationalMorseMap[lo]) {
+                        res += internationalMorseMap[lo] + ' '; orig += c;
+                    } else if (c === ' ') {
+                        res += '/ '; orig += ' ';
+                    }
+                });
+                return { morse: res.trim(), original: orig, method: 'mixed' };
+            }
+        }
+
+        // --- Audio Player (from audioPlayer.ts) ---
+        class MorsePlayer {
+            constructor() {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.isPlaying = false;
+                this.currentTimeout = null;
+                this.speed = 20;
+            }
+            setCallbacks(cbs) { this.onHighlight = cbs.onHighlight; this.onComplete = cbs.onComplete; }
+            setSpeed(wpm) { this.speed = wpm; }
+            async playTone(freq, dur) {
+                return new Promise(resolve => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    osc.connect(gain); gain.connect(this.audioContext.destination);
+                    osc.frequency.value = freq;
+                    const now = this.audioContext.currentTime;
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.3, now + 0.005);
+                    gain.gain.setValueAtTime(0.3, now + (dur/1000) - 0.01);
+                    gain.gain.linearRampToValueAtTime(0, now + (dur/1000));
+                    osc.start(now); osc.stop(now + (dur/1000));
+                    setTimeout(resolve, dur);
+                });
+            }
+            async playMorse(morse, original) {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                const unit = 1200 / this.speed;
+                const chars = morse.split(' ');
+                let mIdx = 0, tIdx = 0;
+
+                for (let i = 0; i < chars.length; i++) {
+                    if (!this.isPlaying) break;
+                    const char = chars[i];
+                    if (char === '/') {
+                        tIdx++; mIdx++;
+                        await new Promise(r => this.currentTimeout = setTimeout(r, unit * 7));
+                    } else if (char === '') {
+                        mIdx++;
+                        await new Promise(r => this.currentTimeout = setTimeout(r, unit * 3));
+                    } else {
+                        for (let j = 0; j < char.length; j++) {
+                            if (!this.isPlaying) break;
+                            this.onHighlight?.(mIdx, tIdx);
+                            await this.playTone(800, char[j] === '.' ? unit : unit * 3);
+                            if (j < char.length - 1) {
+                                await new Promise(r => this.currentTimeout = setTimeout(r, unit));
+                            }
+                            mIdx++;
+                        }
+                        if (i < chars.length - 1 && chars[i+1] !== '/') {
+                            this.onHighlight?.(mIdx, tIdx);
+                            await new Promise(r => this.currentTimeout = setTimeout(r, unit * 3));
+                            mIdx++;
+                        }
+                        tIdx++;
+                    }
+                }
+                this.isPlaying = false;
+                this.onComplete?.();
+            }
+            stop() {
+                this.isPlaying = false;
+                if (this.currentTimeout) clearTimeout(this.currentTimeout);
+            }
+        }
+
+        // --- UI Components ---
+        const Highlighter = ({ text, highlightedIndex, className, isMorse }) => {
+            if (!text) return null;
+            return (
+                <div className={`${isMorse ? 'font-mono' : ''} text-lg ${className}`}>
+                    {text.split('').map((char, i) => (
+                        <span key={i} className={i === highlightedIndex ? 'bg-blue-600 bg-opacity-50 rounded px-1 transition-all duration-100' : ''}>
+                            {char}
+                        </span>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- Main App ---
+        function MorseEcho() {
+            const [inputText, setInputText] = useState('');
+            const [morseCode, setMorseCode] = useState('');
+            const [convertedText, setConvertedText] = useState('');
+            const [conversionMethod, setConversionMethod] = useState('mixed');
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [hMorseIdx, setHMorseIdx] = useState(-1);
+            const [hTextIdx, setHTextIdx] = useState(-1);
+            const [speed, setSpeed] = useState(20);
+            const playerRef = useRef(null);
+
+            useEffect(() => {
+                playerRef.current = new MorsePlayer();
+                return () => playerRef.current?.stop();
+            }, []);
+
+            useEffect(() => {
+                playerRef.current.setSpeed(speed);
+                playerRef.current.setCallbacks({
+                    onHighlight: (m, t) => { setHMorseIdx(m); setHTextIdx(t); },
+                    onComplete: () => { setIsPlaying(false); setHMorseIdx(-1); setHTextIdx(-1); }
+                });
+            }, [speed]);
+
+            useEffect(() => {
+                const res = textToMorse(inputText);
+                setMorseCode(res.morse);
+                setConvertedText(res.original);
+                setConversionMethod(res.method);
+            }, [inputText]);
+
+            const handlePlay = async () => {
+                if (isPlaying) {
+                    playerRef.current.stop();
+                    setIsPlaying(false);
+                    setHMorseIdx(-1); setHTextIdx(-1);
+                } else {
+                    setIsPlaying(true);
+                    await playerRef.current.playMorse(morseCode, convertedText);
+                }
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <div className="max-w-4xl mx-auto">
+                        <header className="text-center mb-8">
+                            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex justify-center items-center gap-2">
+                                <i data-lucide="volume-2"></i> MorseEcho <i data-lucide="globe"></i>
+                            </h1>
+                            <p className="text-gray-400 mt-2">日本語・英語対応のリアルタイムモールス信号コンバーター</p>
+                        </header>
+
+                        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-6">
+                            <h2 className="text-xl font-semibold mb-4">入力テキスト</h2>
+                            <textarea
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
+                                placeholder="こんにちは / Hello / 123..."
+                                className="w-full bg-gray-700 border-gray-600 rounded-lg p-4 text-white h-32 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                                disabled={isPlaying}
+                            />
+                        </div>
+
+                        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-semibold flex items-center gap-2">
+                                    <i data-lucide="gauge"></i> 再生速度: {speed} WPM
+                                </h2>
+                                <span className={`text-xs px-2 py-1 rounded bg-blue-600`}>
+                                    {speed < 15 ? '低速' : speed < 25 ? '標準' : '高速'}
+                                </span>
+                            </div>
+                            <input
+                                type="range" min="5" max="40" value={speed}
+                                onChange={(e) => setSpeed(Number(e.target.value))}
+                                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                                disabled={isPlaying}
+                            />
+                            <div className="grid grid-cols-3 gap-2 mt-4">
+                                {[10, 20, 30].map(v => (
+                                    <button key={v} onClick={() => setSpeed(v)} className="bg-gray-700 hover:bg-gray-600 py-2 rounded text-sm transition" disabled={isPlaying}>
+                                        {v === 10 ? '初心者' : v === 20 ? '標準' : '高速'} ({v})
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6 mb-6">
+                            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+                                <h2 className="text-lg font-semibold mb-3">変換後テキスト</h2>
+                                <div className="min-h-[100px] p-4 bg-gray-900 rounded-lg">
+                                    <Highlighter text={convertedText} highlightedIndex={hTextIdx} className="text-green-400" isMorse={false} />
+                                </div>
+                            </div>
+                            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+                                <h2 className="text-lg font-semibold mb-3">モールス信号</h2>
+                                <div className="min-h-[100px] p-4 bg-gray-900 rounded-lg">
+                                    <Highlighter text={morseCode} highlightedIndex={hMorseIdx} className="text-yellow-400" isMorse={true} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between bg-gray-800 rounded-xl p-4">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-3 h-3 rounded-full ${isPlaying ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+                                <span className="text-sm text-gray-400">{isPlaying ? '再生中...' : '準備完了'}</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={handlePlay} disabled={!morseCode} className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2">
+                                    {isPlaying ? '停止' : '再生'}
+                                </button>
+                                <button onClick={() => {setInputText(''); playerRef.current.stop(); setIsPlaying(false);}} className="border border-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg">
+                                    リセット
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MorseEcho />);
+        
+        // Initialize icons after render
+        setTimeout(() => lucide.createIcons(), 500);
+    </script>
+</body>
+</html>
